@@ -1,11 +1,11 @@
 #include <iostream>
-#include <iostream>
 #include <fstream>
 #include <string>
-
+#include <opencv4/opencv.h>
 
 
 using namespace std;
+using namespace cv;
 
 int main() {
     std::cout << "Oiêeee" << std::endl;

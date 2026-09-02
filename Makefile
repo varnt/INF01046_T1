@@ -1,6 +1,6 @@
 # Definições de variáveis
 CXX = g++
-CXXFLAGS = -Wall -std=c++17
+CXXFLAGS = -Wall -std=c++17 `pkg-config --cflags opencv4`
 TARGET = programa
 SRC = main.cpp
 
