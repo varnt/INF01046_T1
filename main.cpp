@@ -3,8 +3,7 @@
 #include <fstream>
 #include <string>
 
-//#define STB_IMAGE_IMPLEMENTATION
-//#include <opencv2/opencv.hpp>
+
 
 using namespace std;
 
