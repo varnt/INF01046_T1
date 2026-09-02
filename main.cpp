@@ -7,11 +7,30 @@
 using namespace std;
 using namespace cv;
 
-int main() {
-    std::cout << "Oiêeee" << std::endl;
-    string filenameInput = "Space_187k.jpg";
-    string filenameOutput = "Space_187k_output.jpg";
+int main(){
+/*int main(int argc, char** argv) {
+    if (argc != 2) {
+        std::cerr << "Uso: " << argv[0] << " <imagem_entrada>" << std::endl;
+        return 1;
+    }
+ 
+    string filenameInput = argv[1];
+    */
+
+    cout << "1º Trabalho de Implementação - INF01046 – Fundamentos de Processamento de Imagens - Aluno: Victor de Souza Arnt Matrícula:00291097" << std::endl;
+    string filenameInput = "Space_187k.jpg"; 
+    string filenameOutput;
+
     
+    size_t lastDot = filenameInput.find_last_of(".");
+
+    if (lastDot != std::string::npos) {
+       //arquivo com extensão, adiciona "_out" antes da extensão
+        filenameOutput = filenameInput.substr(0, lastDot) + "_out" + filenameInput.substr(lastDot);
+    } else {
+        //Caso arquivo n tenha estensão, adiciona "_out"
+        filenameOutput = filenameInput + "_out";
+    }
 
 
     //Abrir o arquivo de entrada para leitura
