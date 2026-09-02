@@ -1,11 +1,11 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-//#include <opencv4/opencv.h>
-
+#include <opencv2/opencv.hpp>
+#include "ImageOps.h"
 
 using namespace std;
-//using namespace cv;
+using namespace cv;
 
 int main(){
 /*int main(int argc, char** argv) {
