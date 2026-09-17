@@ -1,5 +1,3 @@
-
-
 #include <iostream>
 #include <string>
 #include <cstring>
@@ -10,14 +8,14 @@
 
 using namespace std;
 using namespace cv;
-namespace imgops {
+namespace operacoesim {
 
-    // --- Declarações ---
+    //Declarações
     Mat mirror(const Mat& src, bool horizontal, bool vertical);
     Mat toGrayscaleLuminance(const Mat& src);
     Mat quantize(const Mat& grayImg, int n);
 
-    // --- Implementações da parte 2 ---
+    //Implementações
     
     // (a) Espelhamento horizontal e vertical
     Mat mirror(const Mat& src, bool horizontal, bool vertical) {
@@ -123,12 +121,7 @@ namespace imgops {
         return dst;
     }
 
-} // namespace imgops
-
-
-// ============================================================================
-// INTERFACE E INTERAÇÃO (Originalmente main.cpp)
-// ============================================================================
+} // namespace operacoesim
 
 Mat g_original;   
 Mat g_result;     
@@ -145,13 +138,13 @@ void updateDisplay(int = 0, void* = nullptr) {
     Mat step = g_original;
 
     if (g_mirrorH || g_mirrorV) {
-        step = imgops::mirror(step, g_mirrorH != 0, g_mirrorV != 0);
+        step = operacoesim::mirror(step, g_mirrorH != 0, g_mirrorV != 0);
     }
 
     if (g_grayscale) {
-        step = imgops::toGrayscaleLuminance(step);
+        step = operacoesim::toGrayscaleLuminance(step);
         int n = max(2, g_levels);
-        step = imgops::quantize(step, n);
+        step = operacoesim::quantize(step, n);
     }
 
     g_result = step;
@@ -180,11 +173,11 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    string inputPath = argv[1];
+    string imagem_entrada = argv[1];
 
-    g_original = imread(inputPath, IMREAD_COLOR);
+    g_original = imread(imagem_entrada, IMREAD_COLOR);
     if (g_original.empty()) {
-        cerr << "Erro: nao foi possivel abrir a imagem '" << inputPath << "'." << endl;
+        cerr << "Erro: nao foi possivel abrir a imagem '" << imagem_entrada << "'." << endl;
         return 1;
     }
     g_result = g_original.clone();
@@ -212,17 +205,17 @@ int main(int argc, char** argv) {
             break;
         }
         if (key == 's' || key == 'S') {
-            // Lógica automática de geração de nome "filename_out"
+            // Lógica automática de geração de nome com sufixo
             string outPath;
-            size_t lastDot = inputPath.find_last_of(".");
+            size_t lastDot = imagem_entrada.find_last_of(".");
             
             if (lastDot != string::npos) {
-                outPath = inputPath.substr(0, lastDot) + "_out" + inputPath.substr(lastDot);
+                outPath = imagem_entrada.substr(0, lastDot) + "_out" + imagem_entrada.substr(lastDot);
             } else {
-                outPath = inputPath + "_out.jpg"; // Fallback caso não tenha extensão
+                outPath = imagem_entrada + "_out.jpg"; // Caso não tenha extensão
             }
 
-            vector<int> jpegParams = { IMWRITE_JPEG_QUALITY, 95 };
+            vector<int> jpegParams = { IMWRITE_JPEG_QUALITY, 100 };
             bool ok = imwrite(outPath, g_result, jpegParams);
 
             if (ok) {
