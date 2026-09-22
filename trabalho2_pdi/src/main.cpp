@@ -3,18 +3,22 @@
 // Trabalho 2 - Transformacoes Lineares, Equalizacao e Matching de
 // Histograma, Convolucao e Filtragem no Dominio Espacial
 //
-// Integra as operacoes implementadas em ImageOps (T1), PointOps, Histogram,
-// LabOps (extra), Geometry e Convolution atraves de um menu no console.
-// O OpenCV (highgui) e usado APENAS para leitura/gravacao de arquivos e
-// gerencia de janelas, conforme permitido pelo enunciado.
+// Interface 100% dentro das janelas do OpenCV: parametros continuos
+// (brilho, contraste, niveis de quantizacao, fatores de zoom, kernel de
+// convolucao) sao trackbars; as demais operacoes sao atalhos de teclado.
+// NENHUMA leitura de std::cin acontece durante a interacao: o loop
+// principal chama cv::waitKey continuamente, entao a janela nunca fica
+// "not responding" esperando entrada de texto no console.
 //
 // Uso:
-//   ./trabalho2 <imagem_entrada>
+//   ./trabalho2 <imagem_entrada> [imagem_referencia_para_histogram_matching]
 // ============================================================================
 
 #include <opencv2/opencv.hpp>
 #include <iostream>
-#include <limits>
+#include <sstream>
+#include <iomanip>
+
 #include "ImageOps.h"
 #include "PointOps.h"
 #include "Histogram.h"
@@ -24,65 +28,132 @@
 
 static const std::string WIN_ORIGINAL = "Original";
 static const std::string WIN_RESULT   = "Resultado";
+static const std::string WIN_CONTROLS = "Controles";
 static const std::string WIN_HIST     = "Histograma";
 
-cv::Mat g_original;   // imagem original, carregada uma unica vez, nunca modificada
-cv::Mat g_current;    // imagem "de trabalho": cada operacao parte dela e a substitui
+// --- Estado global ---
+cv::Mat g_original;     // carregada uma vez, nunca modificada
+cv::Mat g_base;         // imagem "salva": resultado das ultimas operacoes aplicadas
+cv::Mat g_reference1C;  // imagem de referencia (histogram matching), opcional
+bool    g_hasReference = false;
 
-// Atualiza a janela de resultado e processa a fila de eventos do OpenCV.
-static void refresh() {
-    cv::imshow(WIN_RESULT, g_current);
-    cv::waitKey(1);
+// --- Trackbars (parametros continuos) ---
+int g_brightness = 255;   // 0..510  -> delta = valor - 255  (-255..255)
+int g_contrast   = 100;   // 1..500  -> fator = valor / 100.0 (0.01..5.00)
+int g_levels     = 256;   // 2..256  -> niveis de quantizacao
+int g_sxTrack    = 20;    // 10..500 -> sx = valor / 10.0 (1.0..50.0)
+int g_syTrack    = 20;    // 10..500 -> sy = valor / 10.0 (1.0..50.0)
+int g_kernelIdx  = 0;     // 0..7    -> 0 = nenhum; 1..7 = kernels do enunciado
+
+std::vector<conv::Kernel3x3> g_kernels;
+
+static void updateDisplay(int = 0, void* = nullptr) {
+    double delta  = g_brightness - 255;
+    double factor = g_contrast / 100.0;
+
+    cv::Mat preview = pointops::adjustBrightness(g_base, static_cast<int>(delta));
+    preview = pointops::adjustContrast(preview, factor);
+
+    cv::imshow(WIN_RESULT, preview);
 }
 
-static void printMenu() {
-    std::cout << "\n==================== MENU ====================\n"
-              << " 1  - Ajustar brilho\n"
-              << " 2  - Ajustar contraste\n"
-              << " 3  - Calcular negativo\n"
-              << " 4  - Mostrar histograma (luminancia da imagem atual)\n"
-              << " 5  - Equalizar histograma (cinza / cor via luminancia)\n"
-              << " 6  - Equalizar histograma em L*a*b* [extra]\n"
-              << " 7  - Histogram matching com outra imagem\n"
-              << " 8  - Converter para tons de cinza (luminancia)\n"
-              << " 9  - Quantizar tons (converte p/ cinza automaticamente)\n"
-              << " 10 - Espelhar horizontal\n"
-              << " 11 - Espelhar vertical\n"
-              << " 12 - Zoom out (reduzir)\n"
-              << " 13 - Zoom in 2x2 (ampliar)\n"
-              << " 14 - Rotacionar 90 (horario)\n"
-              << " 15 - Rotacionar 90 (anti-horario)\n"
-              << " 16 - Aplicar convolucao 3x3 (escolher kernel)\n"
-              << " 17 - Restaurar imagem original\n"
-              << " 18 - Salvar imagem atual em JPEG\n"
-              << " 0  - Sair\n"
-              << "================================================\n"
-              << "Opcao: ";
+// "Salva" o efeito atual das trackbars de brilho/contraste na imagem base,
+// e as reseta para o ponto neutro. Chamado antes de qualquer operacao de
+// tecla (negativo, equalizar, girar, etc.) para que o brilho/contraste
+// ajustados na hora nao se percam nem sejam aplicados em dobro.
+static void commitPreview() {
+    double delta  = g_brightness - 255;
+    double factor = g_contrast / 100.0;
+
+    g_base = pointops::adjustBrightness(g_base, static_cast<int>(delta));
+    g_base = pointops::adjustContrast(g_base, factor);
+
+    g_brightness = 255;
+    g_contrast = 100;
+    cv::setTrackbarPos("Brilho", WIN_CONTROLS, g_brightness);
+    cv::setTrackbarPos("Contraste", WIN_CONTROLS, g_contrast);
 }
 
-static int readInt() {
-    int v;
-    while (!(std::cin >> v)) {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Valor invalido, tente novamente: ";
+static void showHistogram() {
+    cv::Mat lum = imgops::toGrayscaleLuminance1C(g_base);
+    histo::Hist256 h = histo::computeHistogram(lum);
+    cv::Mat histImg = histo::drawHistogram(h);
+    cv::namedWindow(WIN_HIST, cv::WINDOW_AUTOSIZE);
+    cv::imshow(WIN_HIST, histImg);
+}
+
+static void applyConvolution() {
+    if (g_kernelIdx <= 0 || static_cast<size_t>(g_kernelIdx) > g_kernels.size()) {
+        std::cout << "[convolucao] Selecione um kernel (1-7) na trackbar 'Kernel' antes de apertar 'k'.\n";
+        return;
     }
-    return v;
+    const conv::Kernel3x3& k = g_kernels[g_kernelIdx - 1];
+    std::cout << "[convolucao] Aplicando kernel: " << k.name << "\n";
+
+    if (k.colorAllowed && g_base.channels() == 3) {
+        g_base = conv::convolve3x3Color(g_base, k.w, k.addOffset127);
+    } else {
+        cv::Mat gray1C = imgops::toGrayscaleLuminance1C(g_base);
+        cv::Mat result1C = conv::convolve3x3Gray(gray1C, k.w, k.addOffset127);
+        cv::merge(std::vector<cv::Mat>{result1C, result1C, result1C}, g_base);
+    }
 }
 
-static double readDouble() {
-    double v;
-    while (!(std::cin >> v)) {
-        std::cin.clear();
-        std::cin.ignore(std::numeric_limits<std::streamsize>::max(), '\n');
-        std::cout << "Valor invalido, tente novamente: ";
-    }
-    return v;
+static void saveCurrent() {
+    static int counter = 1;
+    std::ostringstream oss;
+    oss << "resultado_" << std::setw(3) << std::setfill('0') << counter++ << ".jpg";
+    std::string path = oss.str();
+
+    double delta  = g_brightness - 255;
+    double factor = g_contrast / 100.0;
+    cv::Mat toSave = pointops::adjustBrightness(g_base, static_cast<int>(delta));
+    toSave = pointops::adjustContrast(toSave, factor);
+
+    std::vector<int> jpegParams = { cv::IMWRITE_JPEG_QUALITY, 95 };
+    bool ok = cv::imwrite(path, toSave, jpegParams);
+    std::cout << (ok ? "[salvar] Imagem salva em: " + path
+                      : std::string("[salvar] ERRO ao salvar a imagem."))
+              << std::endl;
+}
+
+static void printHelp() {
+    std::cout <<
+        "\n================= COMANDOS =================\n"
+        "Trackbars (janela 'Controles'):\n"
+        "  Brilho      : ajuste em tempo real (-255..255)\n"
+        "  Contraste   : ajuste em tempo real (fator 0.01..5.00)\n"
+        "  Niveis      : niveis de quantizacao (usado com a tecla 'u')\n"
+        "  ZoomSx/ZoomSy: fatores de reducao (usados com a tecla 'z')\n"
+        "  Kernel      : 0=nenhum, 1..7=kernel de convolucao (usado com 'k')\n"
+        "                1=Gaussiano 2=Laplaciano 3=PassaAltasGenerico\n"
+        "                4=PrewittHx 5=PrewittHy 6=SobelHx 7=SobelHy\n"
+        "\n"
+        "Teclado (com a janela 'Resultado' em foco):\n"
+        "  n - negativo\n"
+        "  g - converter para tons de cinza (luminancia)\n"
+        "  e - equalizar histograma (cinza / cor via luminancia)\n"
+        "  l - equalizar histograma em L*a*b* [extra]\n"
+        "  u - quantizar tons (usa a trackbar 'Niveis')\n"
+        "  x - espelhar horizontal\n"
+        "  y - espelhar vertical\n"
+        "  z - zoom out / reduzir (usa as trackbars 'ZoomSx'/'ZoomSy')\n"
+        "  Z - zoom in 2x2 (shift+z)\n"
+        "  r - rotacionar 90 horario\n"
+        "  R - rotacionar 90 anti-horario (shift+r)\n"
+        "  k - aplicar convolucao com o kernel selecionado na trackbar\n"
+        "  m - histogram matching com a imagem de referencia (2o argumento)\n"
+        "  h - mostrar histograma (janela separada)\n"
+        "  o - restaurar imagem original\n"
+        "  s - salvar imagem atual (gera resultado_NNN.jpg)\n"
+        "  ? - mostrar esta ajuda novamente\n"
+        "  q / ESC - sair\n"
+        "==============================================\n" << std::endl;
 }
 
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        std::cerr << "Uso: " << argv[0] << " <imagem_entrada>" << std::endl;
+    if (argc < 2 || argc > 3) {
+        std::cerr << "Uso: " << argv[0] << " <imagem_entrada> [imagem_referencia]" << std::endl;
         return 1;
     }
 
@@ -91,189 +162,148 @@ int main(int argc, char** argv) {
         std::cerr << "Erro: nao foi possivel abrir a imagem '" << argv[1] << "'." << std::endl;
         return 1;
     }
-    g_current = g_original.clone();
+    g_base = g_original.clone();
+
+    if (argc == 3) {
+        cv::Mat refColor = cv::imread(argv[2], cv::IMREAD_COLOR);
+        if (refColor.empty()) {
+            std::cerr << "Aviso: nao foi possivel abrir a imagem de referencia '"
+                      << argv[2] << "'. Histogram matching ('m') ficara indisponivel." << std::endl;
+        } else {
+            g_reference1C = imgops::toGrayscaleLuminance1C(refColor);
+            g_hasReference = true;
+        }
+    }
+
+    g_kernels = conv::builtinKernels();
 
     cv::namedWindow(WIN_ORIGINAL, cv::WINDOW_AUTOSIZE);
     cv::namedWindow(WIN_RESULT, cv::WINDOW_AUTOSIZE);
+    cv::namedWindow(WIN_CONTROLS, cv::WINDOW_NORMAL);
+    cv::resizeWindow(WIN_CONTROLS, 420, 220);
+
     cv::imshow(WIN_ORIGINAL, g_original);
-    refresh();
+
+    cv::createTrackbar("Brilho", WIN_CONTROLS, &g_brightness, 510, updateDisplay);
+    cv::createTrackbar("Contraste", WIN_CONTROLS, &g_contrast, 500, updateDisplay);
+    cv::setTrackbarMin("Contraste", WIN_CONTROLS, 1);
+    cv::createTrackbar("Niveis", WIN_CONTROLS, &g_levels, 256, nullptr);
+    cv::setTrackbarMin("Niveis", WIN_CONTROLS, 2);
+    cv::createTrackbar("ZoomSx", WIN_CONTROLS, &g_sxTrack, 500, nullptr);
+    cv::setTrackbarMin("ZoomSx", WIN_CONTROLS, 10);
+    cv::createTrackbar("ZoomSy", WIN_CONTROLS, &g_syTrack, 500, nullptr);
+    cv::setTrackbarMin("ZoomSy", WIN_CONTROLS, 10);
+    cv::createTrackbar("Kernel", WIN_CONTROLS, &g_kernelIdx, 7, nullptr);
+
+    updateDisplay();
+    printHelp();
 
     bool running = true;
     while (running) {
-        printMenu();
-        int opt = readInt();
+        int key = cv::waitKey(30) & 0xFF; // mantem a fila de eventos da GUI sempre viva
 
-        switch (opt) {
-            case 1: { // brilho
-                std::cout << "Delta de brilho [-255,255]: ";
-                int delta = readInt();
-                g_current = pointops::adjustBrightness(g_current, delta);
-                refresh();
+        switch (key) {
+            case 'n':
+                commitPreview();
+                g_base = pointops::negative(g_base);
+                updateDisplay();
+                break;
+            case 'g':
+                commitPreview();
+                g_base = imgops::toGrayscaleLuminance(g_base);
+                updateDisplay();
+                break;
+            case 'e':
+                commitPreview();
+                g_base = histo::equalizeColorViaLuminance(g_base);
+                updateDisplay();
+                break;
+            case 'l':
+                commitPreview();
+                g_base = labops::equalizeLab(g_base);
+                updateDisplay();
+                break;
+            case 'u': {
+                commitPreview();
+                cv::Mat gray = imgops::toGrayscaleLuminance(g_base);
+                g_base = imgops::quantize(gray, g_levels);
+                updateDisplay();
                 break;
             }
-            case 2: { // contraste
-                std::cout << "Fator de contraste (0,255]: ";
-                double factor = readDouble();
-                g_current = pointops::adjustContrast(g_current, factor);
-                refresh();
+            case 'x':
+                commitPreview();
+                g_base = imgops::mirror(g_base, true, false);
+                updateDisplay();
+                break;
+            case 'y':
+                commitPreview();
+                g_base = imgops::mirror(g_base, false, true);
+                updateDisplay();
+                break;
+            case 'z': {
+                commitPreview();
+                double sx = g_sxTrack / 10.0;
+                double sy = g_syTrack / 10.0;
+                g_base = geom::zoomOut(g_base, sx, sy);
+                updateDisplay();
                 break;
             }
-            case 3: { // negativo
-                g_current = pointops::negative(g_current);
-                refresh();
+            case 'Z':
+                commitPreview();
+                g_base = geom::zoomIn2x(g_base);
+                updateDisplay();
                 break;
-            }
-            case 4: { // mostrar histograma
-                cv::Mat lum = imgops::toGrayscaleLuminance1C(g_current);
-                histo::Hist256 h = histo::computeHistogram(lum);
-                cv::Mat histImg = histo::drawHistogram(h);
-                cv::namedWindow(WIN_HIST, cv::WINDOW_AUTOSIZE);
-                cv::imshow(WIN_HIST, histImg);
-                cv::waitKey(1);
+            case 'r':
+                commitPreview();
+                g_base = geom::rotate90(g_base, true);
+                updateDisplay();
                 break;
-            }
-            case 5: { // equalizar (cinza ou cor via luminancia)
-                g_current = histo::equalizeColorViaLuminance(g_current);
-                refresh();
+            case 'R':
+                commitPreview();
+                g_base = geom::rotate90(g_base, false);
+                updateDisplay();
                 break;
-            }
-            case 6: { // equalizar em Lab (extra)
-                g_current = labops::equalizeLab(g_current);
-                refresh();
+            case 'k':
+                commitPreview();
+                applyConvolution();
+                updateDisplay();
                 break;
-            }
-            case 7: { // histogram matching
-                std::cout << "Caminho da imagem de referencia (tons de cinza): ";
-                std::string refPath;
-                std::cin >> refPath;
-                cv::Mat refImg = cv::imread(refPath, cv::IMREAD_COLOR);
-                if (refImg.empty()) {
-                    std::cerr << "Nao foi possivel abrir '" << refPath << "'." << std::endl;
+            case 'm': {
+                if (!g_hasReference) {
+                    std::cout << "[matching] Nenhuma imagem de referencia foi passada "
+                                 "como 2o argumento na linha de comando.\n";
                     break;
                 }
-                cv::Mat srcGray = imgops::toGrayscaleLuminance1C(g_current);
-                cv::Mat refGray = imgops::toGrayscaleLuminance1C(refImg);
-                cv::Mat matched1C = histo::histogramMatching(srcGray, refGray);
-                cv::Mat matched3C;
-                cv::merge(std::vector<cv::Mat>{matched1C, matched1C, matched1C}, matched3C);
-                g_current = matched3C;
-                refresh();
+                commitPreview();
+                cv::Mat srcGray = imgops::toGrayscaleLuminance1C(g_base);
+                cv::Mat matched1C = histo::histogramMatching(srcGray, g_reference1C);
+                cv::merge(std::vector<cv::Mat>{matched1C, matched1C, matched1C}, g_base);
+                updateDisplay();
                 break;
             }
-            case 8: { // converter para cinza
-                g_current = imgops::toGrayscaleLuminance(g_current);
-                refresh();
+            case 'h':
+                showHistogram();
                 break;
-            }
-            case 9: { // quantizar
-                std::cout << "Numero maximo de tons (n): ";
-                int n = readInt();
-                cv::Mat gray = imgops::toGrayscaleLuminance(g_current); // idempotente se ja for cinza
-                g_current = imgops::quantize(gray, n);
-                refresh();
+            case 'o':
+                g_base = g_original.clone();
+                g_brightness = 255;
+                g_contrast = 100;
+                cv::setTrackbarPos("Brilho", WIN_CONTROLS, g_brightness);
+                cv::setTrackbarPos("Contraste", WIN_CONTROLS, g_contrast);
+                updateDisplay();
                 break;
-            }
-            case 10: { // espelhar horizontal
-                g_current = imgops::mirror(g_current, true, false);
-                refresh();
+            case 's':
+                saveCurrent();
                 break;
-            }
-            case 11: { // espelhar vertical
-                g_current = imgops::mirror(g_current, false, true);
-                refresh();
+            case '?':
+                printHelp();
                 break;
-            }
-            case 12: { // zoom out
-                std::cout << "Fator de reducao sx (>=1): ";
-                double sx = readDouble();
-                std::cout << "Fator de reducao sy (>=1): ";
-                double sy = readDouble();
-                if (sx < 1.0 || sy < 1.0) {
-                    std::cerr << "sx e sy devem ser >= 1." << std::endl;
-                    break;
-                }
-                g_current = geom::zoomOut(g_current, sx, sy);
-                refresh();
-                break;
-            }
-            case 13: { // zoom in 2x
-                g_current = geom::zoomIn2x(g_current);
-                refresh();
-                break;
-            }
-            case 14: { // rotacionar horario
-                g_current = geom::rotate90(g_current, true);
-                refresh();
-                break;
-            }
-            case 15: { // rotacionar anti-horario
-                g_current = geom::rotate90(g_current, false);
-                refresh();
-                break;
-            }
-            case 16: { // convolucao
-                std::vector<conv::Kernel3x3> kernels = conv::builtinKernels();
-                std::cout << "Kernels disponiveis:\n";
-                for (size_t k = 0; k < kernels.size(); ++k) {
-                    std::cout << "  " << (k + 1) << " - " << kernels[k].name << "\n";
-                }
-                std::cout << "  " << (kernels.size() + 1) << " - Kernel customizado (informar os 9 pesos)\n";
-                std::cout << "Escolha: ";
-                int kchoice = readInt();
-
-                double w[3][3];
-                bool addOffset = false;
-                bool colorAllowed = false;
-
-                if (kchoice >= 1 && static_cast<size_t>(kchoice) <= kernels.size()) {
-                    const conv::Kernel3x3& k = kernels[kchoice - 1];
-                    for (int i = 0; i < 3; ++i)
-                        for (int j = 0; j < 3; ++j)
-                            w[i][j] = k.w[i][j];
-                    addOffset = k.addOffset127;
-                    colorAllowed = k.colorAllowed;
-                } else {
-                    std::cout << "Informe os 9 pesos, linha a linha (a b c / d e f / g h i):\n";
-                    for (int i = 0; i < 3; ++i)
-                        for (int j = 0; j < 3; ++j)
-                            w[i][j] = readDouble();
-                    std::cout << "Somar 127 ao resultado antes do clamping? (0=nao, 1=sim): ";
-                    addOffset = (readInt() != 0);
-                    colorAllowed = false;
-                }
-
-                if (colorAllowed && g_current.channels() == 3) {
-                    g_current = conv::convolve3x3Color(g_current, w, addOffset);
-                } else {
-                    cv::Mat gray1C = imgops::toGrayscaleLuminance1C(g_current);
-                    cv::Mat result1C = conv::convolve3x3Gray(gray1C, w, addOffset);
-                    cv::merge(std::vector<cv::Mat>{result1C, result1C, result1C}, g_current);
-                }
-                refresh();
-                break;
-            }
-            case 17: { // restaurar original
-                g_current = g_original.clone();
-                refresh();
-                break;
-            }
-            case 18: { // salvar
-                std::cout << "Nome do arquivo de saida (ex: resultado.jpg): ";
-                std::string outPath;
-                std::cin >> outPath;
-                std::vector<int> jpegParams = { cv::IMWRITE_JPEG_QUALITY, 95 };
-                bool ok = cv::imwrite(outPath, g_current, jpegParams);
-                std::cout << (ok ? "Imagem salva em " + outPath
-                                  : std::string("Erro ao salvar a imagem."))
-                          << std::endl;
-                break;
-            }
-            case 0: {
+            case 'q':
+            case 27: // ESC
                 running = false;
                 break;
-            }
             default:
-                std::cout << "Opcao invalida." << std::endl;
+                break; // tecla sem funcao (ou nenhuma tecla pressionada nesse ciclo)
         }
     }
 

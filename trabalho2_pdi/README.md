@@ -2,8 +2,18 @@
 
 Extensão do Trabalho 1 em C++, usando **OpenCV** apenas como biblioteca de
 leitura/gravação de arquivos (`imread`/`imwrite`) e como toolkit de janela
-(`highgui`: janelas e `imshow`). Todas as operações de processamento de
-imagem são implementadas manualmente.
+(`highgui`: janelas, trackbars, teclado). Todas as operações de
+processamento de imagem são implementadas manualmente.
+
+A interface é **inteiramente dentro das janelas do OpenCV** — sem prompts
+no console durante o uso. Parâmetros contínuos (brilho, contraste, níveis
+de quantização, fatores de zoom, escolha de kernel) são trackbars; as
+demais operações são atalhos de teclado, lidos num loop que chama
+`cv::waitKey` continuamente. Isso é importante: uma versão anterior lia
+esses parâmetros via `std::cin`, o que bloqueava a thread principal e
+fazia o gerenciador de janelas mostrar "not responding" enquanto o
+programa esperava você digitar algo no terminal — esse problema não existe
+mais nesta versão.
 
 ## Estrutura dos arquivos
 
@@ -17,7 +27,7 @@ trabalho2_pdi/
     ├── LabOps.h / .cpp            # (1.5 extra) equalização em L*a*b*
     ├── Geometry.h / .cpp           # (2.7, 2.8, 2.9) zoom out/in, rotação 90°
     ├── Convolution.h / .cpp         # (2.10) convolução 3x3 + kernels do enunciado
-    └── main.cpp                      # menu no console + janelas do OpenCV
+    └── main.cpp                      # trackbars + atalhos de teclado, tudo no OpenCV
 ```
 
 ## Como compilar
@@ -28,33 +38,67 @@ make
 ```
 Gera o executável em `build/trabalho2`.
 
-Pré-requisitos: `g++` com C++17 e `libopencv-dev` instalado (`sudo apt install libopencv-dev cmake g++` no Ubuntu/Debian — o CMake não é necessário para este Makefile, mas o pacote de desenvolvimento do OpenCV sim).
+Pré-requisitos: `g++` com C++17 e `libopencv-dev` (`sudo apt install libopencv-dev g++` no Ubuntu/Debian).
 
 ## Como executar
 
 ```bash
 ./build/trabalho2 caminho/para/imagem.jpg
+# ou, para poder usar o histogram matching ('m'):
+./build/trabalho2 caminho/para/imagem.jpg caminho/para/referencia.jpg
 ```
 
-O programa abre duas janelas (**Original** e **Resultado**) e apresenta um
-**menu numerado no console**. Cada opção aplica uma operação sobre a
-imagem "de trabalho" (`g_current`), que começa como uma cópia da original
-e vai sendo transformada a cada escolha — permitindo compor operações
-(ex.: brilho, depois negativo, depois rotação) ou usar a opção **17** para
-restaurar a imagem original a qualquer momento.
+Se aparecer erro de "symbol lookup error" envolvendo `/snap/...`, o
+problema é o `LD_LIBRARY_PATH` do seu terminal (normalmente por ter sido
+aberto a partir de um app instalado via snap), não o programa — rode
+`LD_LIBRARY_PATH= ./build/trabalho2 imagem.jpg` para confirmar, ou abra um
+terminal "limpo" do sistema.
 
-Principais opções do menu:
-- **1/2/3** — brilho, contraste, negativo (Parte 1, itens 2–4)
-- **4** — mostra o histograma da luminância da imagem atual em janela separada (item 1)
-- **5** — equalização de histograma; funciona tanto para imagens em cinza quanto coloridas (usa o histograma cumulativo da luminância aplicado a cada canal) (item 5)
-- **6** — equalização no espaço L\*a\*b\* (pontos extra)
-- **7** — histogram matching com uma segunda imagem informada pelo caminho (item 6)
-- **8/9** — conversão para cinza e quantização (reaproveitados do T1)
-- **10/11** — espelhamento horizontal/vertical (reaproveitados do T1)
-- **12/13** — zoom out (com sx, sy) e zoom in 2x2 (itens 7–8)
-- **14/15** — rotação 90° horário/anti-horário, aplicável repetidamente (item 9)
-- **16** — convolução 3x3, com os 7 kernels do enunciado prontos para escolher, ou pesos customizados (item 10)
-- **18** — salva a imagem atual em JPEG
+O programa abre três janelas:
+- **Original** — a imagem carregada, fixa.
+- **Resultado** — pré-visualização ao vivo (clique nela para que o teclado funcione) e o resultado acumulado das operações.
+- **Controles** — as trackbars.
+
+Uma janela **Histograma** aparece à parte quando você aperta `h`.
+
+### Trackbars (janela "Controles")
+| Trackbar | Efeito |
+|---|---|
+| Brilho | ajuste em tempo real, -255..255 |
+| Contraste | ajuste em tempo real, fator 0.01..5.00 |
+| Niveis | níveis de quantização, usado ao apertar `u` |
+| ZoomSx / ZoomSy | fatores de redução, usados ao apertar `z` |
+| Kernel | 0=nenhum, 1..7=kernel de convolução (ver legenda abaixo), usado ao apertar `k` |
+
+Legenda dos kernels: `1=Gaussiano(passa-baixas) 2=Laplaciano 3=PassaAltasGenérico 4=PrewittHx 5=PrewittHy 6=SobelHx 7=SobelHy`.
+
+### Atalhos de teclado (com a janela "Resultado" em foco)
+| Tecla | Ação |
+|---|---|
+| `n` | negativo |
+| `g` | converter para tons de cinza (luminância) |
+| `e` | equalizar histograma (cinza / cor via luminância) |
+| `l` | equalizar histograma em L\*a\*b\* **[pontos extra]** |
+| `u` | quantizar tons (usa a trackbar "Niveis") |
+| `x` | espelhar horizontal |
+| `y` | espelhar vertical |
+| `z` | zoom out / reduzir (usa "ZoomSx"/"ZoomSy") |
+| `Z` (shift+z) | zoom in 2x2 |
+| `r` | rotacionar 90° horário |
+| `R` (shift+r) | rotacionar 90° anti-horário |
+| `k` | aplicar convolução com o kernel da trackbar |
+| `m` | histogram matching com a imagem de referência (2º argumento da linha de comando) |
+| `h` | mostrar histograma em janela separada |
+| `o` | restaurar imagem original |
+| `s` | salvar imagem atual (gera `resultado_NNN.jpg`, numeração automática) |
+| `?` | reimprime esta lista de comandos no console |
+| `q` / `ESC` | sair |
+
+Cada operação de tecla parte do estado atual (você pode compor: por
+exemplo, `e` para equalizar, depois `r` para rotacionar, depois `k` com um
+kernel de Sobel selecionado). O ajuste de brilho/contraste pelas trackbars
+é incorporado automaticamente à imagem de trabalho antes de qualquer outra
+operação, então nada se perde.
 
 ## Notas de implementação (para o relatório)
 
@@ -77,7 +121,7 @@ padrão CIE, D65), equaliza apenas o canal L e reconverte para BGR.
 
 **Histogram matching (6)** — para cada tom da imagem de origem, procura o
 tom da referência cujo histograma cumulativo mais se aproxima (busca
-exaustiva 256×256, o que é perfeitamente rápido para este propósito).
+exaustiva 256×256, perfeitamente rápida para este propósito).
 
 **Zoom out (7)** — para cada pixel de saída, define um retângulo
 `[round(i·sy), round((i+1)·sy))` × `[round(j·sx), round((j+1)·sx))` sobre a
@@ -109,7 +153,7 @@ demais são aplicados sobre a luminância.
 
 Lembre de incluir, para cada item do trabalho: se foi concluído
 satisfatoriamente (e, se não, por quê); capturas de tela mostrando
-original vs. resultado (histogramas antes/depois da equalização,
-exemplos de cada kernel de convolução, zoom in/out, rotações, etc.); uma
-captura da interface (janelas "Original" + "Resultado" + menu do
-console); dificuldades enfrentadas e o que você faria diferente.
+original vs. resultado (histogramas antes/depois da equalização, exemplos
+de cada kernel de convolução, zoom in/out, rotações, etc.); uma captura da
+interface (janelas "Original" + "Resultado" + "Controles"); dificuldades
+enfrentadas e o que você faria diferente.
