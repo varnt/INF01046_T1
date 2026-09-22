@@ -1,0 +1,35 @@
+// ============================================================================
+// INF01046 - Fundamentos de Processamento de Imagens
+// Operacoes do Trabalho 1, reaproveitadas como base do Trabalho 2:
+//   a) Espelhamento horizontal e vertical
+//   b) Conversao para tons de cinza (luminancia)
+//   c) Quantizacao de tons
+// ============================================================================
+
+#ifndef IMAGE_OPS_H
+#define IMAGE_OPS_H
+
+#include <opencv2/opencv.hpp>
+
+namespace imgops {
+
+// Espelha a imagem horizontalmente e/ou verticalmente (memcpy por linha /
+// por pixel). Funciona para numero par ou impar de linhas/colunas.
+cv::Mat mirror(const cv::Mat& src, bool horizontal, bool vertical);
+
+// Converte uma imagem colorida (BGR, 3 canais) para tons de cinza usando
+// L = 0.299R + 0.587G + 0.114B. Retorna uma imagem de 3 canais com R=G=B=L.
+cv::Mat toGrayscaleLuminance(const cv::Mat& src);
+
+// Mesma conversao, mas retorna uma imagem de 1 canal (CV_8UC1), mais
+// pratica para os calculos de histograma do Trabalho 2. Aceita entrada de
+// 1 ou 3 canais (se ja for 1 canal, apenas clona).
+cv::Mat toGrayscaleLuminance1C(const cv::Mat& src);
+
+// Quantiza os tons de uma imagem em tons de cinza (3 canais, R=G=B) para,
+// no maximo, "n" niveis distintos, pelo esquema de binning do enunciado.
+cv::Mat quantize(const cv::Mat& grayImg, int n);
+
+} // namespace imgops
+
+#endif // IMAGE_OPS_H
