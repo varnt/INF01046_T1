@@ -17,28 +17,29 @@
 #include <array>
 #include <string>
 #include <vector>
-
+using namespace std;
+using namespace cv;
 namespace conv {
 
 struct Kernel3x3 {
-    std::string name;
+    string name;
     double w[3][3];   // w[i][j], i = linha (0=topo), j = coluna (0=esquerda)
     bool addOffset127;    // soma 127 antes do clamping (filtros iv-vii)
     bool colorAllowed;    // pode ser aplicado direto em imagem colorida (kernel i)
 };
 
 // Kernels pedidos no enunciado, na ordem (i) a (vii).
-std::vector<Kernel3x3> builtinKernels();
+vector<Kernel3x3> builtinKernels();
 
 // Aplica a convolucao 3x3 a uma imagem de 1 canal (luminancia), ignorando
 // a borda de 1 pixel. addOffset127 controla se soma-se 127 ao resultado
 // antes do clamping para [0,255] (usado nos filtros de gradiente).
-cv::Mat convolve3x3Gray(const cv::Mat& gray1C, const double kernel[3][3], bool addOffset127);
+Mat convolve3x3Gray(const Mat& gray1C, const double kernel[3][3], bool addOffset127);
 
 // Aplica a convolucao 3x3 a uma imagem colorida (BGR), canal a canal,
 // ignorando a borda de 1 pixel. Usado apenas para o filtro passa-baixas
 // (Gaussiano), que pode ser aplicado diretamente sobre a imagem colorida.
-cv::Mat convolve3x3Color(const cv::Mat& colorBGR, const double kernel[3][3], bool addOffset127);
+Mat convolve3x3Color(const Mat& colorBGR, const double kernel[3][3], bool addOffset127);
 
 } // namespace conv
 

@@ -9,8 +9,8 @@ A interface é **inteiramente dentro das janelas do OpenCV** — sem prompts
 no console durante o uso. Parâmetros contínuos (brilho, contraste, níveis
 de quantização, fatores de zoom, escolha de kernel) são trackbars; as
 demais operações são atalhos de teclado, lidos num loop que chama
-`cv::waitKey` continuamente. Isso é importante: uma versão anterior lia
-esses parâmetros via `std::cin`, o que bloqueava a thread principal e
+`waitKey` continuamente. Isso é importante: uma versão anterior lia
+esses parâmetros via `cin`, o que bloqueava a thread principal e
 fazia o gerenciador de janelas mostrar "not responding" enquanto o
 programa esperava você digitar algo no terminal — esse problema não existe
 mais nesta versão.

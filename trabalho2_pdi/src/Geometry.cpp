@@ -3,7 +3,8 @@
 #include <cstring>
 #include <vector>
 #include <algorithm>
-
+using namespace std;
+using namespace cv;
 namespace geom {
 
 // ----------------------------------------------------------------------
@@ -12,33 +13,33 @@ namespace geom {
 // genérica para imagens de 1 ou 3 canais operando byte a byte (cada byte
 // corresponde a um canal de cor).
 // ----------------------------------------------------------------------
-cv::Mat zoomOut(const cv::Mat& src, double sx, double sy) {
+Mat zoomOut(const Mat& src, double sx, double sy) {
     CV_Assert(sx >= 1.0 && sy >= 1.0);
 
     const int rows = src.rows;
     const int cols = src.cols;
     const int elemSize = static_cast<int>(src.elemSize());
 
-    const int outRows = static_cast<int>(std::ceil(rows / sy));
-    const int outCols = static_cast<int>(std::ceil(cols / sx));
+    const int outRows = static_cast<int>(ceil(rows / sy));
+    const int outCols = static_cast<int>(ceil(cols / sx));
 
-    cv::Mat dst(outRows, outCols, src.type());
+    Mat dst(outRows, outCols, src.type());
 
     for (int oi = 0; oi < outRows; ++oi) {
-        int rowStart = static_cast<int>(std::round(oi * sy));
-        int rowEnd   = static_cast<int>(std::round((oi + 1) * sy));
-        rowStart = std::max(0, std::min(rows, rowStart));
-        rowEnd   = std::max(rowStart + 1, std::min(rows, rowEnd));
+        int rowStart = static_cast<int>(round(oi * sy));
+        int rowEnd   = static_cast<int>(round((oi + 1) * sy));
+        rowStart = max(0, min(rows, rowStart));
+        rowEnd   = max(rowStart + 1, min(rows, rowEnd));
 
         uchar* dstRow = dst.ptr<uchar>(oi);
 
         for (int oj = 0; oj < outCols; ++oj) {
-            int colStart = static_cast<int>(std::round(oj * sx));
-            int colEnd   = static_cast<int>(std::round((oj + 1) * sx));
-            colStart = std::max(0, std::min(cols, colStart));
-            colEnd   = std::max(colStart + 1, std::min(cols, colEnd));
+            int colStart = static_cast<int>(round(oj * sx));
+            int colEnd   = static_cast<int>(round((oj + 1) * sx));
+            colStart = max(0, min(cols, colStart));
+            colEnd   = max(colStart + 1, min(cols, colEnd));
 
-            std::vector<double> sum(elemSize, 0.0);
+            vector<double> sum(elemSize, 0.0);
             long count = 0;
 
             for (int r = rowStart; r < rowEnd; ++r) {
@@ -53,7 +54,7 @@ cv::Mat zoomOut(const cv::Mat& src, double sx, double sy) {
             uchar* dstPx = dstRow + oj * elemSize;
             for (int e = 0; e < elemSize; ++e) {
                 dstPx[e] = (count > 0)
-                    ? static_cast<uchar>(std::lround(sum[e] / static_cast<double>(count)))
+                    ? static_cast<uchar>(lround(sum[e] / static_cast<double>(count)))
                     : 0;
             }
         }
@@ -71,19 +72,19 @@ cv::Mat zoomOut(const cv::Mat& src, double sx, double sy) {
 // A ultima linha/coluna (sem par seguinte para interpolar) repete o
 // ultimo valor valido.
 // ----------------------------------------------------------------------
-cv::Mat zoomIn2x(const cv::Mat& src) {
+Mat zoomIn2x(const Mat& src) {
     const int R = src.rows;
     const int C = src.cols;
     const int elemSize = static_cast<int>(src.elemSize());
 
-    cv::Mat dst(2 * R, 2 * C, src.type(), cv::Scalar::all(0));
+    Mat dst(2 * R, 2 * C, src.type(), Scalar::all(0));
 
     // Passo 1: posiciona os pixels originais em (2i, 2j).
     for (int i = 0; i < R; ++i) {
         const uchar* srcRow = src.ptr<uchar>(i);
         uchar* dstRow = dst.ptr<uchar>(2 * i);
         for (int j = 0; j < C; ++j) {
-            std::memcpy(dstRow + (2 * j) * elemSize, srcRow + j * elemSize, elemSize);
+            memcpy(dstRow + (2 * j) * elemSize, srcRow + j * elemSize, elemSize);
         }
     }
 
@@ -98,12 +99,12 @@ cv::Mat zoomIn2x(const cv::Mat& src) {
             if (j == C - 1) {
                 // sem vizinho a direita: replica o valor da esquerda
                 uchar* left = dstRow + (oddCol - 1) * elemSize;
-                std::memcpy(mid, left, elemSize);
+                memcpy(mid, left, elemSize);
             } else {
                 uchar* left  = dstRow + (oddCol - 1) * elemSize;
                 uchar* right = dstRow + (oddCol + 1) * elemSize;
                 for (int e = 0; e < elemSize; ++e) {
-                    mid[e] = static_cast<uchar>(std::lround((left[e] + right[e]) / 2.0));
+                    mid[e] = static_cast<uchar>(lround((left[e] + right[e]) / 2.0));
                 }
             }
         }
@@ -121,11 +122,11 @@ cv::Mat zoomIn2x(const cv::Mat& src) {
 
         if (i == R - 1) {
             // sem linha par seguinte: replica a linha de cima
-            std::memcpy(midRow, aboveRow, totalBytesPerRow);
+            memcpy(midRow, aboveRow, totalBytesPerRow);
         } else {
             uchar* belowRow = dst.ptr<uchar>(oddRow + 1);
             for (int x = 0; x < totalBytesPerRow; ++x) {
-                midRow[x] = static_cast<uchar>(std::lround((aboveRow[x] + belowRow[x]) / 2.0));
+                midRow[x] = static_cast<uchar>(lround((aboveRow[x] + belowRow[x]) / 2.0));
             }
         }
     }
@@ -137,12 +138,12 @@ cv::Mat zoomIn2x(const cv::Mat& src) {
 // (9) Rotacao de 90 graus. Troca linhas por colunas (dst.rows = src.cols,
 // dst.cols = src.rows) e reposiciona cada pixel conforme o sentido.
 // ----------------------------------------------------------------------
-cv::Mat rotate90(const cv::Mat& src, bool clockwise) {
+Mat rotate90(const Mat& src, bool clockwise) {
     const int rows = src.rows;
     const int cols = src.cols;
     const int elemSize = static_cast<int>(src.elemSize());
 
-    cv::Mat dst(cols, rows, src.type());
+    Mat dst(cols, rows, src.type());
 
     for (int i = 0; i < rows; ++i) {
         const uchar* srcRow = src.ptr<uchar>(i);
@@ -159,7 +160,7 @@ cv::Mat rotate90(const cv::Mat& src, bool clockwise) {
             }
 
             uchar* dstPx = dst.ptr<uchar>(di) + dj * elemSize;
-            std::memcpy(dstPx, px, elemSize);
+            memcpy(dstPx, px, elemSize);
         }
     }
     return dst;

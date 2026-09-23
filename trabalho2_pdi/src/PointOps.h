@@ -8,19 +8,20 @@
 #define POINT_OPS_H
 
 #include <opencv2/opencv.hpp>
-
+using namespace std;
+using namespace cv;
 namespace pointops {
 
 // (2) Ajuste de brilho: novoValor = clamp(valor + delta, 0, 255)
 // delta deve estar no intervalo [-255, 255].
-cv::Mat adjustBrightness(const cv::Mat& src, int delta);
+Mat adjustBrightness(const Mat& src, int delta);
 
 // (3) Ajuste de contraste: novoValor = clamp(valor * factor, 0, 255)
 // factor deve estar no intervalo (0, 255].
-cv::Mat adjustContrast(const cv::Mat& src, double factor);
+Mat adjustContrast(const Mat& src, double factor);
 
 // (4) Negativo: novoValor = 255 - valor
-cv::Mat negative(const cv::Mat& src);
+Mat negative(const Mat& src);
 
 } // namespace pointops
 

@@ -1,11 +1,12 @@
 #include "Convolution.h"
 #include <cmath>
 #include <algorithm>
-
+using namespace std;
+using namespace cv;
 namespace conv {
 
-std::vector<Kernel3x3> builtinKernels() {
-    std::vector<Kernel3x3> ks;
+vector<Kernel3x3> builtinKernels() {
+    vector<Kernel3x3> ks;
 
     // (i) Gaussiano - passa baixas (borramento). Pode ser aplicado direto
     // em imagem colorida; nao soma offset (pesos somam 1, sempre >=0).
@@ -77,7 +78,7 @@ std::vector<Kernel3x3> builtinKernels() {
 static inline uchar clampToByte(double v) {
     if (v < 0.0)   return 0;
     if (v > 255.0) return 255;
-    return static_cast<uchar>(std::lround(v));
+    return static_cast<uchar>(lround(v));
 }
 
 // Conv(E) = i*A + h*B + g*C + f*D + e*E + d*F + c*G + b*H + a*I, com o
@@ -99,9 +100,9 @@ static inline double convAt3x3(const uchar* rowAbove, const uchar* rowMid,
     return sum;
 }
 
-cv::Mat convolve3x3Gray(const cv::Mat& gray1C, const double kernel[3][3], bool addOffset127) {
+Mat convolve3x3Gray(const Mat& gray1C, const double kernel[3][3], bool addOffset127) {
     CV_Assert(gray1C.channels() == 1);
-    cv::Mat dst = gray1C.clone(); // bordas permanecem iguais a original
+    Mat dst = gray1C.clone(); // bordas permanecem iguais a original
 
     const int rows = gray1C.rows;
     const int cols = gray1C.cols;
@@ -121,18 +122,18 @@ cv::Mat convolve3x3Gray(const cv::Mat& gray1C, const double kernel[3][3], bool a
     return dst;
 }
 
-cv::Mat convolve3x3Color(const cv::Mat& colorBGR, const double kernel[3][3], bool addOffset127) {
+Mat convolve3x3Color(const Mat& colorBGR, const double kernel[3][3], bool addOffset127) {
     CV_Assert(colorBGR.channels() == 3);
-    cv::Mat dst = colorBGR.clone();
+    Mat dst = colorBGR.clone();
 
     const int rows = colorBGR.rows;
     const int cols = colorBGR.cols;
 
     for (int r = 1; r < rows - 1; ++r) {
-        const cv::Vec3b* rowAbove = colorBGR.ptr<cv::Vec3b>(r - 1);
-        const cv::Vec3b* rowMid   = colorBGR.ptr<cv::Vec3b>(r);
-        const cv::Vec3b* rowBelow = colorBGR.ptr<cv::Vec3b>(r + 1);
-        cv::Vec3b* dstRow = dst.ptr<cv::Vec3b>(r);
+        const Vec3b* rowAbove = colorBGR.ptr<Vec3b>(r - 1);
+        const Vec3b* rowMid   = colorBGR.ptr<Vec3b>(r);
+        const Vec3b* rowBelow = colorBGR.ptr<Vec3b>(r + 1);
+        Vec3b* dstRow = dst.ptr<Vec3b>(r);
 
         for (int c = 1; c < cols - 1; ++c) {
             for (int ch = 0; ch < 3; ++ch) {

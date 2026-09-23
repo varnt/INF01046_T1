@@ -7,25 +7,26 @@
 #define GEOMETRY_H
 
 #include <opencv2/opencv.hpp>
-
+using namespace std;
+using namespace cv;
 namespace geom {
 
 // (7) Reduz a imagem usando fatores de reducao sx (colunas) e sy (linhas),
 // ambos >= 1, nao necessariamente iguais. Cada pixel de saida e a media
 // dos pixels da imagem original cobertos pelo retangulo sy x sx
 // correspondente (recortado nas bordas quando necessario).
-cv::Mat zoomOut(const cv::Mat& src, double sx, double sy);
+Mat zoomOut(const Mat& src, double sx, double sy);
 
 // (8) Amplia a imagem por um fator fixo de 2 em cada dimensao (a imagem de
 // saida tem 4x o numero de pixels da original). Implementado em dois
 // passos 1-D: insere linhas/colunas em branco e depois interpola
 // linearmente ao longo das linhas e, em seguida, das colunas.
-cv::Mat zoomIn2x(const cv::Mat& src);
+Mat zoomIn2x(const Mat& src);
 
 // (9) Rotaciona a imagem 90 graus. clockwise = true -> sentido horario;
 // false -> sentido anti-horario. Chamar a funcao multiplas vezes permite
 // obter rotacoes de +/-180, +/-270, etc.
-cv::Mat rotate90(const cv::Mat& src, bool clockwise);
+Mat rotate90(const Mat& src, bool clockwise);
 
 } // namespace geom
 
