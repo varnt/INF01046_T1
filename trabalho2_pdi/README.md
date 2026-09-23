@@ -148,12 +148,3 @@ diretamente limitado a `[0,255]`; para os kernels de gradiente (iv)-(vii)
 soma-se 127 antes do *clamping*, como pedido. Apenas o kernel (i)
 (Gaussiano) pode ser aplicado diretamente sobre a imagem colorida; os
 demais são aplicados sobre a luminância.
-
-## Sobre o relatório
-
-Lembre de incluir, para cada item do trabalho: se foi concluído
-satisfatoriamente (e, se não, por quê); capturas de tela mostrando
-original vs. resultado (histogramas antes/depois da equalização, exemplos
-de cada kernel de convolução, zoom in/out, rotações, etc.); uma captura da
-interface (janelas "Original" + "Resultado" + "Controles"); dificuldades
-enfrentadas e o que você faria diferente.
