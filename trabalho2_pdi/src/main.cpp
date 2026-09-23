@@ -194,6 +194,7 @@ int main(int argc, char** argv) {
     cv::createTrackbar("ZoomSy", WIN_CONTROLS, &g_syTrack, 500, nullptr);
     cv::setTrackbarMin("ZoomSy", WIN_CONTROLS, 10);
     cv::createTrackbar("Kernel", WIN_CONTROLS, &g_kernelIdx, 7, nullptr);
+    
 
     updateDisplay();
     printHelp();
