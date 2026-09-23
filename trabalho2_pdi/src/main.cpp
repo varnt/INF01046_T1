@@ -3,12 +3,19 @@
 // Trabalho 2 - Transformacoes Lineares, Equalizacao e Matching de
 // Histograma, Convolucao e Filtragem no Dominio Espacial
 //
-// Interface 100% dentro das janelas do OpenCV: parametros continuos
-// (brilho, contraste, niveis de quantizacao, fatores de zoom, kernel de
-// convolucao) sao trackbars; as demais operacoes sao atalhos de teclado.
-// NENHUMA leitura de std::cin acontece durante a interacao: o loop
-// principal chama cv::waitKey continuamente, entao a janela nunca fica
-// "not responding" esperando entrada de texto no console.
+// Interface 100% dentro do OpenCV: os parametros continuos (brilho,
+// contraste, niveis de quantizacao, fatores de zoom) sao trackbars, e
+// TODAS as demais operacoes sao BOTOES (cv::createButton, requer OpenCV
+// compilado com suporte a Qt). Trackbars e botoes sao criados com o
+// "painel de controles" automatico do Qt (janela auxiliar que o OpenCV
+// abre sozinho na primeira trackbar/botao criado sem estar associado a
+// uma janela de imagem) - e por isso nao aparecem dentro da janela
+// "Resultado" nem "Original", mas sim numa janela separada dedicada aos
+// controles, exatamente como pedido.
+//
+// Nenhuma leitura de std::cin acontece durante o uso: o loop principal
+// so chama cv::waitKey em loop para manter a fila de eventos da GUI viva
+// (os cliques nos botoes chegam via callback, nao pelo teclado).
 //
 // Uso:
 //   ./trabalho2 <imagem_entrada> [imagem_referencia_para_histogram_matching]
@@ -28,7 +35,6 @@
 
 static const std::string WIN_ORIGINAL = "Original";
 static const std::string WIN_RESULT   = "Resultado";
-static const std::string WIN_CONTROLS = "Controles";
 static const std::string WIN_HIST     = "Histograma";
 
 // --- Estado global ---
@@ -36,6 +42,7 @@ cv::Mat g_original;     // carregada uma vez, nunca modificada
 cv::Mat g_base;         // imagem "salva": resultado das ultimas operacoes aplicadas
 cv::Mat g_reference1C;  // imagem de referencia (histogram matching), opcional
 bool    g_hasReference = false;
+bool    g_quit = false;
 
 // --- Trackbars (parametros continuos) ---
 int g_brightness = 255;   // 0..510  -> delta = valor - 255  (-255..255)
@@ -43,11 +50,11 @@ int g_contrast   = 100;   // 1..500  -> fator = valor / 100.0 (0.01..5.00)
 int g_levels     = 256;   // 2..256  -> niveis de quantizacao
 int g_sxTrack    = 20;    // 10..500 -> sx = valor / 10.0 (1.0..50.0)
 int g_syTrack    = 20;    // 10..500 -> sy = valor / 10.0 (1.0..50.0)
-int g_kernelIdx  = 0;     // 0..7    -> 0 = nenhum; 1..7 = kernels do enunciado
 
 std::vector<conv::Kernel3x3> g_kernels;
+static const int kKernelIndex[7] = {1, 2, 3, 4, 5, 6, 7}; // userdata dos botoes de kernel
 
-static void updateDisplay(int = 0, void* = nullptr) {
+static void updateDisplay() {
     double delta  = g_brightness - 255;
     double factor = g_contrast / 100.0;
 
@@ -55,12 +62,15 @@ static void updateDisplay(int = 0, void* = nullptr) {
     preview = pointops::adjustContrast(preview, factor);
 
     cv::imshow(WIN_RESULT, preview);
+    cv::waitKey(1);
 }
 
+static void onTrackbarChange(int, void*) { updateDisplay(); }
+
 // "Salva" o efeito atual das trackbars de brilho/contraste na imagem base,
-// e as reseta para o ponto neutro. Chamado antes de qualquer operacao de
-// tecla (negativo, equalizar, girar, etc.) para que o brilho/contraste
-// ajustados na hora nao se percam nem sejam aplicados em dobro.
+// e as reseta para o ponto neutro. Chamado antes de qualquer botao de
+// operacao, para que o brilho/contraste ajustados na hora nao se percam
+// nem sejam aplicados em dobro.
 static void commitPreview() {
     double delta  = g_brightness - 255;
     double factor = g_contrast / 100.0;
@@ -70,8 +80,8 @@ static void commitPreview() {
 
     g_brightness = 255;
     g_contrast = 100;
-    cv::setTrackbarPos("Brilho", WIN_CONTROLS, g_brightness);
-    cv::setTrackbarPos("Contraste", WIN_CONTROLS, g_contrast);
+    cv::setTrackbarPos("Brilho", "", g_brightness);
+    cv::setTrackbarPos("Contraste", "", g_contrast);
 }
 
 static void showHistogram() {
@@ -80,15 +90,15 @@ static void showHistogram() {
     cv::Mat histImg = histo::drawHistogram(h);
     cv::namedWindow(WIN_HIST, cv::WINDOW_AUTOSIZE);
     cv::imshow(WIN_HIST, histImg);
+    cv::waitKey(1);
 }
 
-static void applyConvolution() {
-    if (g_kernelIdx <= 0 || static_cast<size_t>(g_kernelIdx) > g_kernels.size()) {
-        std::cout << "[convolucao] Selecione um kernel (1-7) na trackbar 'Kernel' antes de apertar 'k'.\n";
-        return;
-    }
-    const conv::Kernel3x3& k = g_kernels[g_kernelIdx - 1];
-    std::cout << "[convolucao] Aplicando kernel: " << k.name << "\n";
+static void applyKernel(int kernelNumber) {
+    if (kernelNumber < 1 || static_cast<size_t>(kernelNumber) > g_kernels.size()) return;
+
+    commitPreview();
+    const conv::Kernel3x3& k = g_kernels[kernelNumber - 1];
+    std::cout << "[convolucao] Aplicando kernel: " << k.name << std::endl;
 
     if (k.colorAllowed && g_base.channels() == 3) {
         g_base = conv::convolve3x3Color(g_base, k.w, k.addOffset127);
@@ -97,6 +107,7 @@ static void applyConvolution() {
         cv::Mat result1C = conv::convolve3x3Gray(gray1C, k.w, k.addOffset127);
         cv::merge(std::vector<cv::Mat>{result1C, result1C, result1C}, g_base);
     }
+    updateDisplay();
 }
 
 static void saveCurrent() {
@@ -117,38 +128,101 @@ static void saveCurrent() {
               << std::endl;
 }
 
-static void printHelp() {
-    std::cout <<
-        "\n================= COMANDOS =================\n"
-        "Trackbars (janela 'Controles'):\n"
-        "  Brilho      : ajuste em tempo real (-255..255)\n"
-        "  Contraste   : ajuste em tempo real (fator 0.01..5.00)\n"
-        "  Niveis      : niveis de quantizacao (usado com a tecla 'u')\n"
-        "  ZoomSx/ZoomSy: fatores de reducao (usados com a tecla 'z')\n"
-        "  Kernel      : 0=nenhum, 1..7=kernel de convolucao (usado com 'k')\n"
-        "                1=Gaussiano 2=Laplaciano 3=PassaAltasGenerico\n"
-        "                4=PrewittHx 5=PrewittHy 6=SobelHx 7=SobelHy\n"
-        "\n"
-        "Teclado (com a janela 'Resultado' em foco):\n"
-        "  n - negativo\n"
-        "  g - converter para tons de cinza (luminancia)\n"
-        "  e - equalizar histograma (cinza / cor via luminancia)\n"
-        "  l - equalizar histograma em L*a*b* [extra]\n"
-        "  u - quantizar tons (usa a trackbar 'Niveis')\n"
-        "  x - espelhar horizontal\n"
-        "  y - espelhar vertical\n"
-        "  z - zoom out / reduzir (usa as trackbars 'ZoomSx'/'ZoomSy')\n"
-        "  Z - zoom in 2x2 (shift+z)\n"
-        "  r - rotacionar 90 horario\n"
-        "  R - rotacionar 90 anti-horario (shift+r)\n"
-        "  k - aplicar convolucao com o kernel selecionado na trackbar\n"
-        "  m - histogram matching com a imagem de referencia (2o argumento)\n"
-        "  h - mostrar histograma (janela separada)\n"
-        "  o - restaurar imagem original\n"
-        "  s - salvar imagem atual (gera resultado_NNN.jpg)\n"
-        "  ? - mostrar esta ajuda novamente\n"
-        "  q / ESC - sair\n"
-        "==============================================\n" << std::endl;
+// ---------------------------------------------------------------------
+// Callbacks dos botoes (cv::ButtonCallback: void(int state, void* userdata))
+// ---------------------------------------------------------------------
+static void onNegativo(int, void*) {
+    commitPreview();
+    g_base = pointops::negative(g_base);
+    updateDisplay();
+}
+static void onTonsDeCinza(int, void*) {
+    commitPreview();
+    g_base = imgops::toGrayscaleLuminance(g_base);
+    updateDisplay();
+}
+static void onEqualizar(int, void*) {
+    commitPreview();
+    g_base = histo::equalizeColorViaLuminance(g_base);
+    updateDisplay();
+}
+static void onEqualizarLab(int, void*) {
+    commitPreview();
+    g_base = labops::equalizeLab(g_base);
+    updateDisplay();
+}
+static void onQuantizar(int, void*) {
+    commitPreview();
+    cv::Mat gray = imgops::toGrayscaleLuminance(g_base);
+    g_base = imgops::quantize(gray, g_levels);
+    updateDisplay();
+}
+static void onEspelharH(int, void*) {
+    commitPreview();
+    g_base = imgops::mirror(g_base, true, false);
+    updateDisplay();
+}
+static void onEspelharV(int, void*) {
+    commitPreview();
+    g_base = imgops::mirror(g_base, false, true);
+    updateDisplay();
+}
+static void onZoomOut(int, void*) {
+    commitPreview();
+    double sx = g_sxTrack / 10.0;
+    double sy = g_syTrack / 10.0;
+    g_base = geom::zoomOut(g_base, sx, sy);
+    updateDisplay();
+}
+static void onZoomIn(int, void*) {
+    commitPreview();
+    g_base = geom::zoomIn2x(g_base);
+    updateDisplay();
+}
+static void onRotacionarHorario(int, void*) {
+    commitPreview();
+    g_base = geom::rotate90(g_base, true);
+    updateDisplay();
+}
+static void onRotacionarAntiHorario(int, void*) {
+    commitPreview();
+    g_base = geom::rotate90(g_base, false);
+    updateDisplay();
+}
+static void onHistogramMatching(int, void*) {
+    if (!g_hasReference) {
+        std::cout << "[matching] Nenhuma imagem de referencia foi passada "
+                     "como 2o argumento na linha de comando." << std::endl;
+        return;
+    }
+    commitPreview();
+    cv::Mat srcGray = imgops::toGrayscaleLuminance1C(g_base);
+    cv::Mat matched1C = histo::histogramMatching(srcGray, g_reference1C);
+    cv::merge(std::vector<cv::Mat>{matched1C, matched1C, matched1C}, g_base);
+    updateDisplay();
+}
+static void onMostrarHistograma(int, void*) {
+    showHistogram();
+}
+static void onRestaurarOriginal(int, void*) {
+    g_base = g_original.clone();
+    g_brightness = 255;
+    g_contrast = 100;
+    cv::setTrackbarPos("Brilho", "", g_brightness);
+    cv::setTrackbarPos("Contraste", "", g_contrast);
+    updateDisplay();
+}
+static void onSalvar(int, void*) {
+    commitPreview();
+    saveCurrent();
+    updateDisplay();
+}
+static void onSair(int, void*) {
+    g_quit = true;
+}
+static void onKernelButton(int, void* userdata) {
+    int kernelNumber = *static_cast<const int*>(userdata);
+    applyKernel(kernelNumber);
 }
 
 int main(int argc, char** argv) {
@@ -168,7 +242,7 @@ int main(int argc, char** argv) {
         cv::Mat refColor = cv::imread(argv[2], cv::IMREAD_COLOR);
         if (refColor.empty()) {
             std::cerr << "Aviso: nao foi possivel abrir a imagem de referencia '"
-                      << argv[2] << "'. Histogram matching ('m') ficara indisponivel." << std::endl;
+                      << argv[2] << "'. Histogram matching ficara indisponivel." << std::endl;
         } else {
             g_reference1C = imgops::toGrayscaleLuminance1C(refColor);
             g_hasReference = true;
@@ -177,134 +251,71 @@ int main(int argc, char** argv) {
 
     g_kernels = conv::builtinKernels();
 
+    // As janelas de imagem precisam existir antes de criar trackbars/botoes
+    // no painel de controles do Qt.
     cv::namedWindow(WIN_ORIGINAL, cv::WINDOW_AUTOSIZE);
     cv::namedWindow(WIN_RESULT, cv::WINDOW_AUTOSIZE);
-    cv::namedWindow(WIN_CONTROLS, cv::WINDOW_NORMAL);
-    cv::resizeWindow(WIN_CONTROLS, 420, 220);
-
     cv::imshow(WIN_ORIGINAL, g_original);
 
-    cv::createTrackbar("Brilho", WIN_CONTROLS, &g_brightness, 510, updateDisplay);
-    cv::createTrackbar("Contraste", WIN_CONTROLS, &g_contrast, 500, updateDisplay);
-    cv::setTrackbarMin("Contraste", WIN_CONTROLS, 1);
-    cv::createTrackbar("Niveis", WIN_CONTROLS, &g_levels, 256, nullptr);
-    cv::setTrackbarMin("Niveis", WIN_CONTROLS, 2);
-    cv::createTrackbar("ZoomSx", WIN_CONTROLS, &g_sxTrack, 500, nullptr);
-    cv::setTrackbarMin("ZoomSx", WIN_CONTROLS, 10);
-    cv::createTrackbar("ZoomSy", WIN_CONTROLS, &g_syTrack, 500, nullptr);
-    cv::setTrackbarMin("ZoomSy", WIN_CONTROLS, 10);
-    cv::createTrackbar("Kernel", WIN_CONTROLS, &g_kernelIdx, 7, nullptr);
+    // --- Trackbars: winname = "" -> vao para o painel de controles do Qt,
+    // junto com os botoes criados a seguir (mesma janela de controles). ---
+    cv::createTrackbar("Brilho", "", &g_brightness, 510, onTrackbarChange);
+    cv::createTrackbar("Contraste", "", &g_contrast, 500, onTrackbarChange);
+    cv::setTrackbarMin("Contraste", "", 1);
+    cv::createTrackbar("Niveis (quantizacao)", "", &g_levels, 256, nullptr);
+    cv::setTrackbarMin("Niveis (quantizacao)", "", 2);
+    cv::createTrackbar("ZoomSx (x0.1)", "", &g_sxTrack, 500, nullptr);
+    cv::setTrackbarMin("ZoomSx (x0.1)", "", 10);
+    cv::createTrackbar("ZoomSy (x0.1)", "", &g_syTrack, 500, nullptr);
+    cv::setTrackbarMin("ZoomSy (x0.1)", "", 10);
+
+    // --- Botoes: uma acao por botao, todos no mesmo painel de controles. ---
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Negativo", onNegativo, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Tons de Cinza", onTonsDeCinza, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Equalizar Histograma", onEqualizar, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Equalizar Histograma (Lab) [extra]", onEqualizarLab, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Quantizar Tons", onQuantizar, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Espelhar Horizontal", onEspelharH, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Espelhar Vertical", onEspelharV, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Zoom Out (Reduzir)", onZoomOut, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Zoom In 2x2 (Ampliar)", onZoomIn, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Rotacionar 90 Horario", onRotacionarHorario, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Rotacionar 90 Anti-horario", onRotacionarAntiHorario, nullptr, cv::QT_PUSH_BUTTON));
+
     
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Gaussiano (passa-baixas)", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[0]), cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Laplaciano (passa-altas)", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[1]), cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Passa-Altas Generico", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[2]), cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Prewitt Hx", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[3]), cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Prewitt Hy", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[4]), cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Sobel Hx", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[5]), cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Sobel Hy", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[6]), cv::QT_PUSH_BUTTON));
+
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Histogram Matching (2o argumento)", onHistogramMatching, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Mostrar Histograma", onMostrarHistograma, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Restaurar Original", onRestaurarOriginal, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Salvar Imagem (JPEG)", onSalvar, nullptr, cv::QT_PUSH_BUTTON));
+    cv::QT_NEW_BUTTONBAR(cv::createButton("Sair", onSair, nullptr, cv::QT_PUSH_BUTTON));
+
+    std::cout << "Todos os controles (sliders e botoes) estao na janela "
+                 "'Control Panel' aberta pelo OpenCV/Qt.\n"
+                 "Se ela nao aparecer em primeiro plano, procure na barra de "
+                 "tarefas ou clique no icone de engrenagem no topo da janela "
+                 "'Resultado'." << std::endl;
 
     updateDisplay();
-    printHelp();
 
-    bool running = true;
-    while (running) {
-        int key = cv::waitKey(30) & 0xFF; // mantem a fila de eventos da GUI sempre viva
-
-        switch (key) {
-            case 'n':
-                commitPreview();
-                g_base = pointops::negative(g_base);
-                updateDisplay();
-                break;
-            case 'g':
-                commitPreview();
-                g_base = imgops::toGrayscaleLuminance(g_base);
-                updateDisplay();
-                break;
-            case 'e':
-                commitPreview();
-                g_base = histo::equalizeColorViaLuminance(g_base);
-                updateDisplay();
-                break;
-            case 'l':
-                commitPreview();
-                g_base = labops::equalizeLab(g_base);
-                updateDisplay();
-                break;
-            case 'u': {
-                commitPreview();
-                cv::Mat gray = imgops::toGrayscaleLuminance(g_base);
-                g_base = imgops::quantize(gray, g_levels);
-                updateDisplay();
-                break;
-            }
-            case 'x':
-                commitPreview();
-                g_base = imgops::mirror(g_base, true, false);
-                updateDisplay();
-                break;
-            case 'y':
-                commitPreview();
-                g_base = imgops::mirror(g_base, false, true);
-                updateDisplay();
-                break;
-            case 'z': {
-                commitPreview();
-                double sx = g_sxTrack / 10.0;
-                double sy = g_syTrack / 10.0;
-                g_base = geom::zoomOut(g_base, sx, sy);
-                updateDisplay();
-                break;
-            }
-            case 'Z':
-                commitPreview();
-                g_base = geom::zoomIn2x(g_base);
-                updateDisplay();
-                break;
-            case 'r':
-                commitPreview();
-                g_base = geom::rotate90(g_base, true);
-                updateDisplay();
-                break;
-            case 'R':
-                commitPreview();
-                g_base = geom::rotate90(g_base, false);
-                updateDisplay();
-                break;
-            case 'k':
-                commitPreview();
-                applyConvolution();
-                updateDisplay();
-                break;
-            case 'm': {
-                if (!g_hasReference) {
-                    std::cout << "[matching] Nenhuma imagem de referencia foi passada "
-                                 "como 2o argumento na linha de comando.\n";
-                    break;
-                }
-                commitPreview();
-                cv::Mat srcGray = imgops::toGrayscaleLuminance1C(g_base);
-                cv::Mat matched1C = histo::histogramMatching(srcGray, g_reference1C);
-                cv::merge(std::vector<cv::Mat>{matched1C, matched1C, matched1C}, g_base);
-                updateDisplay();
-                break;
-            }
-            case 'h':
-                showHistogram();
-                break;
-            case 'o':
-                g_base = g_original.clone();
-                g_brightness = 255;
-                g_contrast = 100;
-                cv::setTrackbarPos("Brilho", WIN_CONTROLS, g_brightness);
-                cv::setTrackbarPos("Contraste", WIN_CONTROLS, g_contrast);
-                updateDisplay();
-                break;
-            case 's':
-                saveCurrent();
-                break;
-            case '?':
-                printHelp();
-                break;
-            case 'q':
-            case 27: // ESC
-                running = false;
-                break;
-            default:
-                break; // tecla sem funcao (ou nenhuma tecla pressionada nesse ciclo)
+    while (!g_quit) {
+        int key = cv::waitKey(30) & 0xFF; // mantem a fila de eventos da GUI viva
+        if (key == 'q' || key == 27) {    // ESC continua funcionando como atalho de saida
+            g_quit = true;
         }
     }
 
