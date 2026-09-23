@@ -25,14 +25,14 @@ static const string WIN_ORIGINAL = "Original";
 static const string WIN_RESULT   = "Resultado";
 static const string WIN_HIST     = "Histograma";
 
-// --- Estado global ---
+//Estado global
 Mat g_original;     // carregada uma vez, nunca modificada
 Mat g_base;         // imagem "salva": resultado das ultimas operacoes aplicadas
 Mat g_reference1C;  // imagem de referencia (histogram matching), opcional
 bool    g_hasReference = false;
 bool    g_quit = false;
 
-// --- Trackbars (parametros continuos) ---
+//Trackbars (parametros continuos)
 int g_brightness = 255;   // 0..510  -> delta = valor - 255  (-255..255)
 int g_contrast   = 100;   // 1..500  -> fator = valor / 100.0 (0.01..5.00)
 int g_levels     = 256;   // 2..256  -> niveis de quantizacao
@@ -116,9 +116,9 @@ static void saveCurrent() {
               << endl;
 }
 
-// ---------------------------------------------------------------------
+
 // Callbacks dos botoes (ButtonCallback: void(int state, void* userdata))
-// ---------------------------------------------------------------------
+
 static void onNegativo(int, void*) {
     commitPreview();
     g_base = pointops::negative(g_base);
@@ -245,8 +245,8 @@ int main(int argc, char** argv) {
     namedWindow(WIN_RESULT, WINDOW_AUTOSIZE);
     imshow(WIN_ORIGINAL, g_original);
 
-    // --- Trackbars: winname = "" -> vao para o painel de controles do Qt,
-    // junto com os botoes criados a seguir (mesma janela de controles). ---
+    //Trackbars: winname = "" -> vao para o painel de controles do Qt,
+    // junto com os botoes criados a seguir (mesma janela de controles).
     createTrackbar("Brilho", "", &g_brightness, 510, onTrackbarChange);
     createTrackbar("Contraste", "", &g_contrast, 500, onTrackbarChange);
     setTrackbarMin("Contraste", "", 1);
@@ -257,7 +257,7 @@ int main(int argc, char** argv) {
     createTrackbar("ZoomSy (x0.1)", "", &g_syTrack, 500, nullptr);
     setTrackbarMin("ZoomSy (x0.1)", "", 10);
 
-    // --- Botoes: uma acao por botao, todos no mesmo painel de controles. ---
+    //Botoes: uma acao por botao, todos no mesmo painel de controles.
     createButton("Negativo", onNegativo, nullptr, QT_PUSH_BUTTON);
     createButton("Tons de Cinza", onTonsDeCinza, nullptr, QT_PUSH_BUTTON | QT_NEW_BUTTONBAR);
     createButton("Equalizar Histograma", onEqualizar, nullptr, QT_PUSH_BUTTON | QT_NEW_BUTTONBAR);

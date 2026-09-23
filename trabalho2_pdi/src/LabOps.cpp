@@ -6,7 +6,7 @@ using namespace std;
 using namespace cv;
 namespace labops {
 
-// --- constantes do espaco de cor (referencia de branco D65) ---
+//constantes do espaco de cor (referencia de branco D65)
 static const double Xn = 0.95047;
 static const double Yn = 1.00000;
 static const double Zn = 1.08883;

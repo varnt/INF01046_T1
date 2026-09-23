@@ -7,12 +7,12 @@ using namespace std;
 using namespace cv;
 namespace geom {
 
-// ----------------------------------------------------------------------
+
 // (7) Zoom out: reducao por medias de blocos sy x sx (nao necessariamente
 // inteiros), sem sobreposicao e cobrindo toda a imagem. Funciona de forma
 // genérica para imagens de 1 ou 3 canais operando byte a byte (cada byte
 // corresponde a um canal de cor).
-// ----------------------------------------------------------------------
+
 Mat zoomOut(const Mat& src, double sx, double sy) {
     CV_Assert(sx >= 1.0 && sy >= 1.0);
 
@@ -62,7 +62,7 @@ Mat zoomOut(const Mat& src, double sx, double sy) {
     return dst;
 }
 
-// ----------------------------------------------------------------------
+
 // (8) Zoom in 2x2, em dois passos 1-D:
 //   1) posiciona os pixels originais nas posicoes pares (2i, 2j);
 //   2) interpola horizontalmente ao longo das linhas pares (preenche as
@@ -71,7 +71,7 @@ Mat zoomOut(const Mat& src, double sx, double sy) {
 //      linhas impares), usando os valores ja calculados no passo 2.
 // A ultima linha/coluna (sem par seguinte para interpolar) repete o
 // ultimo valor valido.
-// ----------------------------------------------------------------------
+
 Mat zoomIn2x(const Mat& src) {
     const int R = src.rows;
     const int C = src.cols;
@@ -134,10 +134,10 @@ Mat zoomIn2x(const Mat& src) {
     return dst;
 }
 
-// ----------------------------------------------------------------------
+
 // (9) Rotacao de 90 graus. Troca linhas por colunas (dst.rows = src.cols,
 // dst.cols = src.rows) e reposiciona cada pixel conforme o sentido.
-// ----------------------------------------------------------------------
+
 Mat rotate90(const Mat& src, bool clockwise) {
     const int rows = src.rows;
     const int cols = src.cols;
