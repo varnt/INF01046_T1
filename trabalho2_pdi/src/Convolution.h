@@ -1,4 +1,4 @@
-// ============================================================================
+
 // INF01046 - Trabalho 2 - Parte 2, item 10
 // Convolucao com filtro 3x3 arbitrario.
 //
@@ -8,7 +8,7 @@
 //
 // Bordas da imagem sao ignoradas (mantidas iguais a original); a
 // convolucao e aplicada apenas ao interior da imagem.
-// ============================================================================
+
 
 #ifndef CONVOLUTION_H
 #define CONVOLUTION_H

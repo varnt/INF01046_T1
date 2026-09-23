@@ -1,10 +1,10 @@
-// ============================================================================
+
 // INF01046 - Fundamentos de Processamento de Imagens
 // Operacoes do Trabalho 1, reaproveitadas como base do Trabalho 2:
 //   a) Espelhamento horizontal e vertical
 //   b) Conversao para tons de cinza (luminancia)
 //   c) Quantizacao de tons
-// ============================================================================
+
 
 #ifndef IMAGE_OPS_H
 #define IMAGE_OPS_H

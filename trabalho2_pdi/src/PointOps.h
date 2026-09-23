@@ -1,8 +1,8 @@
-// ============================================================================
+
 // INF01046 - Trabalho 2 - Parte 1, itens 2, 3 e 4
 // Operacoes de ponto (pixel a pixel), aplicadas a cada canal (R,G,B) de
 // forma independente no caso de imagens coloridas.
-// ============================================================================
+
 
 #ifndef POINT_OPS_H
 #define POINT_OPS_H

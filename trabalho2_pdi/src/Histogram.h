@@ -1,7 +1,7 @@
-// ============================================================================
+
 // INF01046 - Trabalho 2 - Parte 1, itens 1, 5 e 6
 // Histograma, equalizacao e histogram matching.
-// ============================================================================
+
 
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H

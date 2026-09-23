@@ -1,7 +1,7 @@
-// ============================================================================
+
 // INF01046 - Trabalho 2 - Parte 2, itens 7, 8 e 9
 // Reducao (zoom out), ampliacao 2x2 (zoom in) e rotacao de 90 graus.
-// ============================================================================
+
 
 #ifndef GEOMETRY_H
 #define GEOMETRY_H

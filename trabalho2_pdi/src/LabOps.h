@@ -1,10 +1,10 @@
-// ============================================================================
+
 // INF01046 - Trabalho 2 - Parte 1, item 5 (PONTOS EXTRA - 20 pontos)
 // Equalizacao de histograma no espaco de cor L*a*b*.
 //
 // Conversao RGB <-> L*a*b* implementada manualmente (sem cvtColor),
 // via CIE XYZ (D65), seguindo as formulas padrao do espaco de cor.
-// ============================================================================
+
 
 #ifndef LAB_OPS_H
 #define LAB_OPS_H

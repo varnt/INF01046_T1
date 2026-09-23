@@ -1,7 +1,7 @@
 // INF01046 - Fundamentos de Processamento de Imagens
 // Trabalho 2 - Transformacoes Lineares, Equalizacao e Matching de
 // Histograma, Convolucao e Filtragem no Dominio Espacial
-//
+
 // Uso:
 //   ./trabalho2 <imagem_entrada> [imagem_referencia_para_histogram_matching]
 
