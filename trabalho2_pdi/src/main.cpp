@@ -270,39 +270,39 @@ int main(int argc, char** argv) {
     cv::setTrackbarMin("ZoomSy (x0.1)", "", 10);
 
     // --- Botoes: uma acao por botao, todos no mesmo painel de controles. ---
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Negativo", onNegativo, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Tons de Cinza", onTonsDeCinza, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Equalizar Histograma", onEqualizar, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Equalizar Histograma (Lab) [extra]", onEqualizarLab, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Quantizar Tons", onQuantizar, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Espelhar Horizontal", onEspelharH, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Espelhar Vertical", onEspelharV, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Zoom Out (Reduzir)", onZoomOut, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Zoom In 2x2 (Ampliar)", onZoomIn, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Rotacionar 90 Horario", onRotacionarHorario, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Rotacionar 90 Anti-horario", onRotacionarAntiHorario, nullptr, cv::QT_PUSH_BUTTON));
+    cv::createButton("Negativo", onNegativo, nullptr, cv::QT_PUSH_BUTTON);
+    cv::createButton("Tons de Cinza", onTonsDeCinza, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Equalizar Histograma", onEqualizar, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Equalizar Histograma (Lab) [extra]", onEqualizarLab, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Quantizar Tons", onQuantizar, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Espelhar Horizontal", onEspelharH, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Espelhar Vertical", onEspelharV, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Zoom Out (Reduzir)", onZoomOut, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Zoom In 2x2 (Ampliar)", onZoomIn, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Rotacionar 90 Horario", onRotacionarHorario, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Rotacionar 90 Anti-horario", onRotacionarAntiHorario, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
 
-    
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Gaussiano (passa-baixas)", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[0]), cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Laplaciano (passa-altas)", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[1]), cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Passa-Altas Generico", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[2]), cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Prewitt Hx", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[3]), cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Prewitt Hy", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[4]), cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Sobel Hx", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[5]), cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Kernel: Sobel Hy", onKernelButton,
-                      const_cast<int*>(&kKernelIndex[6]), cv::QT_PUSH_BUTTON));
+    // Um botao por kernel 
+    cv::createButton("Kernel: Gaussiano (passa-baixas)", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[0]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Kernel: Laplaciano (passa-altas)", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[1]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Kernel: Passa-Altas Generico", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[2]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Kernel: Prewitt Hx", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[3]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Kernel: Prewitt Hy", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[4]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Kernel: Sobel Hx", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[5]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Kernel: Sobel Hy", onKernelButton,
+                      const_cast<int*>(&kKernelIndex[6]), cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
 
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Histogram Matching (2o argumento)", onHistogramMatching, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Mostrar Histograma", onMostrarHistograma, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Restaurar Original", onRestaurarOriginal, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Salvar Imagem (JPEG)", onSalvar, nullptr, cv::QT_PUSH_BUTTON));
-    cv::QT_NEW_BUTTONBAR(cv::createButton("Sair", onSair, nullptr, cv::QT_PUSH_BUTTON));
+    cv::createButton("Histogram Matching (2o argumento)", onHistogramMatching, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Mostrar Histograma", onMostrarHistograma, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Restaurar Original", onRestaurarOriginal, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Salvar Imagem (JPEG)", onSalvar, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
+    cv::createButton("Sair", onSair, nullptr, cv::QT_PUSH_BUTTON | cv::QT_NEW_BUTTONBAR);
 
     std::cout << "Todos os controles (sliders e botoes) estao na janela "
                  "'Control Panel' aberta pelo OpenCV/Qt.\n"
