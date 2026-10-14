@@ -9,7 +9,7 @@ vector<Kernel3x3> builtinKernels() {
     vector<Kernel3x3> ks;
 
     // (i) Gaussiano - passa baixas (borramento). Pode ser aplicado direto
-    // em imagem colorida; nao soma offset (pesos somam 1, sempre >=0).
+    // em imagem colorida; nao soma offset (pesos somam 1, sempre >=0). #t3
     ks.push_back(Kernel3x3{
         "i - Gaussiano (passa-baixas)",
         {{0.0625, 0.125, 0.0625},
